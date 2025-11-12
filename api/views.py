@@ -5,7 +5,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.contrib.auth import login, logout
 from django.contrib.auth.models import User
-from django.contrib.auth.hashers import make_password, check_password
+from django.contrib.auth.hashers import check_password
 from django.db.models import Q
 from django.views.decorators.csrf import csrf_exempt
 
@@ -69,5 +69,4 @@ class UsuarioViewSet(viewsets.ModelViewSet):
 
     # Opcional: deletar com procedure
     def perform_destroy(self, instance):
-        from core.utils import call_procedure
         call_procedure('delete_usuario', [instance.id_usuario])
