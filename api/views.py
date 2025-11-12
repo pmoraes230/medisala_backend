@@ -1,27 +1,29 @@
-from rest_framework import viewsets, status
+# api/views.py
+from rest_framework import viewsets, status, permissions
 from rest_framework.response import Response
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from django.contrib.auth import login, logout
 from django.contrib.auth.models import User
-from django.contrib.auth import login
 from django.contrib.auth.hashers import make_password, check_password
 from django.db.models import Q
 from django.views.decorators.csrf import csrf_exempt
-from rest_framework.decorators import api_view, permission_classes
 
 from core.utils import call_procedure
 from core import models
 from api.serializers import UsuariosSerializer
 
 
-# ==================== LOGIN ====================
+# ==================== 1. LOGIN (PÚBLICO) ====================
 @api_view(['POST'])
+@permission_classes([AllowAny])
 @csrf_exempt
 def login_view(request):
     identifier = request.data.get('identifier')
     password = request.data.get('password')
 
     if not identifier or not password:
-        return Response({"success": False, "message": "Dados obrigatórios"}, status=400)
+        return Response({"error": "Preencha CPF/e-mail e senha"}, status=400)
 
     try:
         usuario = models.Usuario.objects.get(
@@ -32,37 +34,40 @@ def login_view(request):
             login(request, user)
             return Response({
                 "success": True,
-                "message": "Logado!",
+                "message": "Login OK",
                 "usuario": UsuariosSerializer(usuario).data
             })
     except models.Usuario.DoesNotExist:
         pass
 
-    return Response({"success": False, "message": "Credenciais inválidas"}, status=401)
+    return Response({"error": "Credenciais inválidas"}, status=401)
 
 
-# ==================== LOGOUT ====================
+# ==================== 2. LOGOUT ====================
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 @csrf_exempt
 def logout_view(request):
-    from django.contrib.auth import logout
     logout(request)
-    return Response({"success": True, "message": "Logout realizado com sucesso!"})
+    return Response({"success": True, "message": "Logout OK"})
 
+# ==================== 3. USUÁRIO VIEWSET (PROTEGIDO) ====================
+class IsAdminUser(permissions.BasePermission):
+    def has_permission(self, request, view):
+        return request.user and request.user.is_staff
 
-# ==================== USUÁRIO VIEWSET (público) ====================
-class UsuarioViewSet(viewsets.ViewSet):
-    permission_classes = [AllowAny]  # ← PÚBLICO
+class UsuarioViewSet(viewsets.ModelViewSet):
+    queryset = models.Usuario.objects.select_related('id_perfil').all()
+    serializer_class = UsuariosSerializer
+    permission_classes = [permissions.IsAuthenticated]
 
-    def list(self, request):
-        usuarios = models.Usuario.objects.select_related('id_perfil').all()
-        serializer = UsuariosSerializer(usuarios, many=True)
-        return Response(serializer.data)
+    # Apenas admin pode criar, atualizar, deletar
+    def get_permissions(self):
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+            return [IsAdminUser()]
+        return super().get_permissions()
 
-    def retrieve(self, request, pk=None):
-        try:
-            usuario = models.Usuario.objects.select_related('id_perfil').get(id_usuario=pk)
-            return Response(UsuariosSerializer(usuario).data)
-        except models.Usuario.DoesNotExist:
-            return Response({"error": "Não encontrado"}, status=404)
+    # Opcional: deletar com procedure
+    def perform_destroy(self, instance):
+        from core.utils import call_procedure
+        call_procedure('delete_usuario', [instance.id_usuario])
