@@ -85,6 +85,7 @@ INSTALLED_APPS += ['corsheaders']
 CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:3000",
     "http://localhost:3000",
+    "http://localhost:5173",
 ]
 CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS
 

@@ -20,14 +20,11 @@ API RESTful para o sistema **MediSala** – gerenciamento de salas, reservas e u
 
 ---
 
-
----
-
 ## Instalação
 
 ```bash
 # 1. Clone o projeto
-git clone https://github.com/seu-usuario/medisala-backend.git
+git clone https://github.com/pmoraes230/medisala_backend.git
 cd medisala-backend
 
 # 2. Crie ambiente virtual
