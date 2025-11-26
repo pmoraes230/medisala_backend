@@ -11,6 +11,9 @@ from django.views.decorators.csrf import csrf_exempt
 from core.utils import call_procedure
 from core import models
 from api.serializers import UsuariosSerializer
+from django.contrib.auth import get_user_model
+
+User = get_user_model() 
 
 
 # ==================== 1. LOGIN (PÚBLICO) ====================
@@ -25,7 +28,7 @@ def login_view(request):
         return Response({"error": "Preencha CPF/e-mail e senha"}, status=400)
 
     try:
-        usuario = models.Usuario.objects.get(
+        usuario = models.Usuario.objects.select_related('id_perfil').get(
             Q(CPF_usuario=identifier) | Q(email_usuario=identifier)
         )
         if check_password(password, usuario.senha_usuario):
@@ -44,11 +47,29 @@ def login_view(request):
 
 # ==================== 2. LOGOUT ====================
 @api_view(['POST'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 @csrf_exempt
 def logout_view(request):
     logout(request)
     return Response({"success": True, "message": "Logout OK"})
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def check_auth(request):
+    if not request.user.is_authenticated:
+        return Response({"isLoggedIn": False})
+
+    # O request.user é um auth.User, mas você salvou o CPF como username
+    cpf = request.user.username  # ← você usou CPF como username!
+
+    try:
+        usuario = models.Usuario.objects.get(CPF_usuario=cpf)
+        return Response({
+            "isLoggedIn": True,
+            "usuario": UsuariosSerializer(usuario).data
+        })
+    except models.Usuario.DoesNotExist:
+        return Response({"isLoggedIn": False})
 
 # ==================== 3. USUÁRIO VIEWSET (PROTEGIDO) ====================
 class IsAdminUser(permissions.BasePermission):
