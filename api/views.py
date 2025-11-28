@@ -12,6 +12,7 @@ from core.utils import call_procedure
 from core import models
 from api.serializers import UsuariosSerializer
 from django.contrib.auth import get_user_model
+from .permissions import IsAuthenticatedSession, IsAdminSession
 
 User = get_user_model() 
 
@@ -32,8 +33,8 @@ def login_view(request):
             Q(CPF_usuario=identifier) | Q(email_usuario=identifier)
         )
         if check_password(password, usuario.senha_usuario):
-            user, _ = User.objects.get_or_create(username=usuario.CPF_usuario)
-            login(request, user)
+            request.session['usuario_id'] = usuario.id_usuario
+            print(f"DEBUG login: Session after set: {request.session.items()}") 
             return Response({
                 "success": True,
                 "message": "Login OK",
@@ -56,14 +57,12 @@ def logout_view(request):
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def check_auth(request):
-    if not request.user.is_authenticated:
+    usuario_id = request.session.get('usuario_id')
+    print(f"DEBUG check_auth: usuario_id = {usuario_id}, session keys = {list(request.session.keys())}")  # Adicione isso
+    if not usuario_id:
         return Response({"isLoggedIn": False})
-
-    # O request.user é um auth.User, mas você salvou o CPF como username
-    cpf = request.user.username  # ← você usou CPF como username!
-
     try:
-        usuario = models.Usuario.objects.get(CPF_usuario=cpf)
+        usuario = models.Usuario.objects.select_related('id_perfil').get(id_usuario=usuario_id)
         return Response({
             "isLoggedIn": True,
             "usuario": UsuariosSerializer(usuario).data
@@ -72,21 +71,13 @@ def check_auth(request):
         return Response({"isLoggedIn": False})
 
 # ==================== 3. USUÁRIO VIEWSET (PROTEGIDO) ====================
-class IsAdminUser(permissions.BasePermission):
-    def has_permission(self, request, view):
-        return request.user and request.user.is_staff
-
 class UsuarioViewSet(viewsets.ModelViewSet):
     queryset = models.Usuario.objects.select_related('id_perfil').all()
     serializer_class = UsuariosSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    
+    permission_classes = [IsAuthenticatedSession]
 
-    # Apenas admin pode criar, atualizar, deletar
     def get_permissions(self):
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            return [IsAdminUser()]
-        return super().get_permissions()
-
-    # Opcional: deletar com procedure
-    def perform_destroy(self, instance):
-        call_procedure('delete_usuario', [instance.id_usuario])
+            return [IsAdminSession()]
+        return [IsAuthenticatedSession()]

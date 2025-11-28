@@ -7,7 +7,6 @@ load_dotenv()
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
@@ -17,8 +16,14 @@ SECRET_KEY = os.getenv("SECRET_KEY")
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
-
+ALLOWED_HOSTS = [
+    'localhost',
+    '127.0.0.1',
+    '127.0.0.1:8000',  # Porta do backend
+    'localhost:5173',   # Porta do frontend
+    '127.0.0.1:5173',   # Variação adicional para cross-origin
+    'localhost:8000',
+]
 
 # Application definition
 
@@ -65,7 +70,6 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'setup.wsgi.application'
 
-
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
@@ -89,6 +93,33 @@ CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS
 CORS_ALLOW_ALL_ORIGINS = False
 
 CORS_ALLOW_CREDENTIALS = True
+
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
+
+# Configurações de sessão para desenvolvimento local (HTTP) - AJUSTADO
+SESSION_COOKIE_SAMESITE = 'None'  # Permite cookies cross-origin
+SESSION_COOKIE_SECURE = False     # False para HTTP local
+SESSION_COOKIE_HTTPONLY = False   # False para depuração
+SESSION_COOKIE_DOMAIN = 'localhost'  # Permite entre 127.0.0.1:8000 e 127.0.0.1:5173
+
+# Mesmo para CSRF - AJUSTADO
+CSRF_COOKIE_SAMESITE = 'None'
+CSRF_COOKIE_SECURE = False
+CSRF_COOKIE_DOMAIN = 'localhost'
+
+# SESSION
+SESSION_SAVE_EVERY_REQUEST = True
+SESSION_COOKIE_AGE = 86400  # 24h
 
 # REST Framework
 REST_FRAMEWORK = {
@@ -119,7 +150,6 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
@@ -130,7 +160,6 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 
 USE_TZ = True
-
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
